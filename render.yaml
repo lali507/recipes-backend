@@ -1,0 +1,45 @@
+# =====================================================================
+# Render Blueprint – הגדרת פריסה אוטומטית של השרת ב-Render
+# מסד הנתונים נמצא אצל ספק נפרד (למשל Neon) – ראי START-HERE.md
+# =====================================================================
+services:
+  - type: web
+    name: recipes-backend
+    runtime: node
+    plan: free
+    region: frankfurt
+    # מתקין גם devDependencies (TypeScript) ובונה את הפרויקט
+    buildCommand: npm ci --include=dev && npm run build
+    # במסלול החינמי אין Pre-Deploy, לכן ה-Migrations רצות בתחילת ההפעלה
+    startCommand: npm run start:prod
+    healthCheckPath: /api/health
+    autoDeployTrigger: commit
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        sync: false # Render יבקש להדביק את כתובת החיבור ממסד הנתונים
+      - key: JWT_SECRET
+        generateValue: true # Render ייצור מחרוזת סודית ארוכה לבד
+      - key: JWT_EXPIRES_IN
+        value: 1d
+      - key: CORS_ORIGINS
+        value: http://localhost:5173 # להוסיף כאן אחר כך את כתובת אתר ה-React
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: ADMIN_NAME
+        value: מנהל האתר
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
+      - key: SEED_DEMO_DATA
+        value: "false"
+      - key: DEMO_USER_PASSWORD
+        sync: false

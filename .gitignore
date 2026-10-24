@@ -1,0 +1,27 @@
+# תלויות
+node_modules/
+
+# קוד מקומפל
+dist/
+
+# Prisma Client נוצר אוטומטית (npm install / npm run build)
+src/generated/
+
+# סודות – לעולם לא ל-GitHub!
+.env
+.env.*
+!.env.example
+!.env.test.example
+
+# לוגים וקבצים זמניים
+*.log
+npm-debug.log*
+coverage/
+.vitest/
+*.tsbuildinfo
+
+# מערכת הפעלה ועורכים
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

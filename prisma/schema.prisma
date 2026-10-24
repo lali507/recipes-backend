@@ -1,0 +1,119 @@
+// =====================================================================
+// Prisma Schema – מסד הנתונים של אתר המתכונים
+// ארבע טבלאות: משתמשים, קטגוריות, מתכונים ומועדפים.
+// =====================================================================
+
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "cjs"
+}
+
+// כתובת החיבור למסד הנתונים מוגדרת בקובץ prisma.config.ts
+// ונלקחת ממשתנה הסביבה DATABASE_URL
+datasource db {
+  provider = "postgresql"
+}
+
+// תפקיד המשתמש במערכת
+enum Role {
+  USER
+  ADMIN
+}
+
+// רמת קושי של מתכון: קל / בינוני / קשה
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
+
+// סוג כשרות: בשרי / חלבי / פרווה
+enum KosherType {
+  MEAT
+  DAIRY
+  PAREVE
+}
+
+// ---------------------------------------------------------------------
+// משתמשים
+// ---------------------------------------------------------------------
+model User {
+  id           Int      @id @default(autoincrement())
+  name         String   @db.VarChar(50)
+  email        String   @unique @db.VarChar(254)
+  passwordHash String   @map("password_hash")
+  role         Role     @default(USER)
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  recipes   Recipe[]
+  favorites Favorite[]
+
+  @@map("users")
+}
+
+// ---------------------------------------------------------------------
+// קטגוריות – מנוהלות בידי המנהל
+// ---------------------------------------------------------------------
+model Category {
+  id        Int      @id @default(autoincrement())
+  name      String   @unique @db.VarChar(40)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  recipes Recipe[]
+
+  @@map("categories")
+}
+
+// ---------------------------------------------------------------------
+// מתכונים – האובייקט המרכזי
+// ---------------------------------------------------------------------
+model Recipe {
+  id              Int        @id @default(autoincrement())
+  title           String     @db.VarChar(100)
+  description     String     @db.VarChar(500)
+  ingredients     String     @db.Text
+  instructions    String     @db.Text
+  prepTimeMinutes Int        @map("prep_time_minutes")
+  difficulty      Difficulty
+  servings        Int
+  kosherType      KosherType @map("kosher_type")
+  isPublic        Boolean    @default(false) @map("is_public")
+  imageUrl        String?    @map("image_url")
+  imagePublicId   String?    @map("image_public_id")
+  createdAt       DateTime   @default(now()) @map("created_at")
+  updatedAt       DateTime   @updatedAt @map("updated_at")
+
+  // מחיקת משתמש מוחקת את המתכונים שלו
+  authorId Int  @map("author_id")
+  author   User @relation(fields: [authorId], references: [id], onDelete: Cascade)
+
+  // אסור למחוק קטגוריה שיש בה מתכונים
+  categoryId Int      @map("category_id")
+  category   Category @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+
+  favorites Favorite[]
+
+  @@index([authorId])
+  @@index([categoryId])
+  @@index([isPublic, createdAt])
+  @@map("recipes")
+}
+
+// ---------------------------------------------------------------------
+// מועדפים – קשר רבים-לרבים בין משתמשים למתכונים
+// ---------------------------------------------------------------------
+model Favorite {
+  userId    Int      @map("user_id")
+  recipeId  Int      @map("recipe_id")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  recipe Recipe @relation(fields: [recipeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, recipeId])
+  @@index([recipeId])
+  @@map("favorites")
+}
