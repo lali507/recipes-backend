@@ -26,7 +26,7 @@ services:
       - key: JWT_EXPIRES_IN
         value: 1d
       - key: CORS_ORIGINS
-        value: http://localhost:5173 # להוסיף כאן אחר כך את כתובת אתר ה-React
+        value: http://localhost:5173,https://recipes-frontend-ey4y.onrender.com # פיתוח מקומי + אתר ה-React
       - key: ADMIN_EMAIL
         sync: false
       - key: ADMIN_PASSWORD
