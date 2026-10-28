@@ -20,6 +20,7 @@ const IMPLEMENTED_ROUTES = [
   'delete /api/categories/{id}',
   'get /api/recipes',
   'get /api/recipes/mine',
+  'get /api/recipes/authors',
   'get /api/recipes/{id}',
   'post /api/recipes',
   'put /api/recipes/{id}',
@@ -44,9 +45,9 @@ describe('OpenAPI / Swagger', () => {
     await expect(SwaggerParser.validate(copy)).resolves.toBeTruthy();
   });
 
-  it('documents exactly the 19 implemented endpoints', () => {
+  it('documents exactly the 20 implemented endpoints', () => {
     expect(documentedRoutes().sort()).toEqual([...IMPLEMENTED_ROUTES].sort());
-    expect(IMPLEMENTED_ROUTES).toHaveLength(19);
+    expect(IMPLEMENTED_ROUTES).toHaveLength(20);
   });
 
   it('every documented route really exists on the server', async () => {
