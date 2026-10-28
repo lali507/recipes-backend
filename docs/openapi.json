@@ -1161,6 +1161,15 @@
             "description": "סינון לפי קטגוריה"
           },
           {
+            "name": "authorId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "סינון לפי מפרסם (מזהה מ-GET /api/recipes/authors)"
+          },
+          {
             "name": "difficulty",
             "in": "query",
             "schema": {
@@ -1326,6 +1335,15 @@
             "description": "סינון לפי קטגוריה"
           },
           {
+            "name": "authorId",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "description": "סינון לפי מפרסם (מזהה מ-GET /api/recipes/authors)"
+          },
+          {
             "name": "difficulty",
             "in": "query",
             "schema": {
@@ -1430,6 +1448,56 @@
         }
       }
     },
+    "/api/recipes/authors": {
+      "get": {
+        "tags": [
+          "Recipes"
+        ],
+        "summary": "רשימת מפרסמים – לתיבת הסינון לפי מפרסם",
+        "description": "דורש Token. רק משתמשים שיש להם לפחות מתכון ציבורי אחד, ממוינים לפי שם. recipeCount = מספר המתכונים הציבוריים.",
+        "security": [
+          {
+            "bearerAuth": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "מערך מפרסמים",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "id": {
+                        "type": "integer"
+                      },
+                      "name": {
+                        "type": "string"
+                      },
+                      "recipeCount": {
+                        "type": "integer"
+                      }
+                    }
+                  },
+                  "example": [
+                    {
+                      "id": 2,
+                      "name": "שרה לוי",
+                      "recipeCount": 5
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          "401": {
+            "$ref": "#/components/responses/Unauthorized"
+          }
+        }
+      }
+    },
     "/api/recipes/{id}": {
       "get": {
         "tags": [
@@ -1481,7 +1549,7 @@
         "tags": [
           "Recipes"
         ],
-        "summary": "עדכון מתכון (יוצר המתכון בלבד)",
+        "summary": "עדכון מתכון (יוצר המתכון, או מנהל במתכון ציבורי)",
         "description": "דורש Token. שולחים את כל השדות, כולל isPublic.",
         "security": [
           {
@@ -1584,7 +1652,7 @@
         "tags": [
           "Recipes"
         ],
-        "summary": "העלאה או החלפה של תמונת מתכון (יוצר המתכון בלבד)",
+        "summary": "העלאה או החלפה של תמונת מתכון (יוצר המתכון, או מנהל במתכון ציבורי)",
         "description": "דורש Token. multipart/form-data עם שדה בשם image. JPG / PNG / WEBP עד 5MB. התמונה הקודמת (אם הייתה) נמחקת מהענן.",
         "security": [
           {
@@ -1701,7 +1769,7 @@
         "tags": [
           "Recipes"
         ],
-        "summary": "הסרת תמונת מתכון (יוצר המתכון בלבד)",
+        "summary": "הסרת תמונת מתכון (יוצר המתכון, או מנהל במתכון ציבורי)",
         "security": [
           {
             "bearerAuth": []

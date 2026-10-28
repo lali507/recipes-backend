@@ -17,6 +17,10 @@ export function createRecipesController(storage: ImageStorage) {
       res.json(await service.listPublicRecipes(currentUser(req), query));
     },
 
+    async listAuthors(_req: Request, res: Response) {
+      res.json(await service.listAuthors());
+    },
+
     async listMine(req: Request, res: Response) {
       const query = parseOrThrow(myRecipesQuerySchema, req.query);
       res.json(await service.listMyRecipes(currentUser(req), query));

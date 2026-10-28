@@ -74,6 +74,7 @@ export const recipeListQuerySchema = paginationSchema.extend({
     z.string({ error: 'search חייב להיות טקסט' }).trim().max(100, 'החיפוש ארוך מדי').optional(),
   ),
   categoryId: z.preprocess(emptyToUndefined, positiveId('מזהה הקטגוריה').optional()),
+  authorId: z.preprocess(emptyToUndefined, positiveId('מזהה המפרסם').optional()),
   difficulty: z.preprocess(emptyToUndefined, difficulty.optional()),
   kosherType: z.preprocess(emptyToUndefined, kosherType.optional()),
   maxPrepTime: z.preprocess(

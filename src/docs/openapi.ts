@@ -87,6 +87,7 @@ const recipeQueryParams = [
     example: 'שוקולד',
   },
   { name: 'categoryId', in: 'query', schema: { type: 'integer', minimum: 1 }, description: 'סינון לפי קטגוריה' },
+  { name: 'authorId', in: 'query', schema: { type: 'integer', minimum: 1 }, description: 'סינון לפי מפרסם (מזהה מ-GET /api/recipes/authors)' },
   {
     name: 'difficulty',
     in: 'query',
@@ -573,6 +574,28 @@ export const openApiDocument = {
         },
       },
     },
+    '/api/recipes/authors': {
+      get: {
+        tags: ['Recipes'],
+        summary: 'רשימת מפרסמים – לתיבת הסינון לפי מפרסם',
+        description: 'דורש Token. רק משתמשים שיש להם לפחות מתכון ציבורי אחד, ממוינים לפי שם. recipeCount = מספר המתכונים הציבוריים.',
+        security: bearer,
+        responses: {
+          200: {
+            description: 'מערך מפרסמים',
+            content: json({
+              type: 'array',
+              items: {
+                type: 'object',
+                properties: { id: { type: 'integer' }, name: { type: 'string' }, recipeCount: { type: 'integer' } },
+              },
+              example: [{ id: 2, name: 'שרה לוי', recipeCount: 5 }],
+            }),
+          },
+          401: resp('Unauthorized'),
+        },
+      },
+    },
     '/api/recipes/{id}': {
       get: {
         tags: ['Recipes'],
@@ -589,7 +612,7 @@ export const openApiDocument = {
       },
       put: {
         tags: ['Recipes'],
-        summary: 'עדכון מתכון (יוצר המתכון בלבד)',
+        summary: 'עדכון מתכון (יוצר המתכון, או מנהל במתכון ציבורי)',
         description: 'דורש Token. שולחים את כל השדות, כולל isPublic.',
         security: bearer,
         parameters: [idParam('id', 'מזהה המתכון')],
@@ -620,7 +643,7 @@ export const openApiDocument = {
     '/api/recipes/{id}/image': {
       post: {
         tags: ['Recipes'],
-        summary: 'העלאה או החלפה של תמונת מתכון (יוצר המתכון בלבד)',
+        summary: 'העלאה או החלפה של תמונת מתכון (יוצר המתכון, או מנהל במתכון ציבורי)',
         description:
           'דורש Token. multipart/form-data עם שדה בשם image. JPG / PNG / WEBP עד 5MB. התמונה הקודמת (אם הייתה) נמחקת מהענן.',
         security: bearer,
@@ -662,7 +685,7 @@ export const openApiDocument = {
       },
       delete: {
         tags: ['Recipes'],
-        summary: 'הסרת תמונת מתכון (יוצר המתכון בלבד)',
+        summary: 'הסרת תמונת מתכון (יוצר המתכון, או מנהל במתכון ציבורי)',
         security: bearer,
         parameters: [idParam('id', 'מזהה המתכון')],
         responses: {

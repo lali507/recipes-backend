@@ -14,6 +14,7 @@ describe('authentication on recipe routes', () => {
     const calls = [
       api.get('/api/recipes'),
       api.get('/api/recipes/mine'),
+      api.get('/api/recipes/authors'),
       api.get('/api/recipes/1'),
       api.post('/api/recipes').send({}),
       api.put('/api/recipes/1').send({}),
@@ -201,7 +202,7 @@ describe('privacy and permissions', () => {
     const recipe = await createRecipe(owner.user.id, category.id, { isPublic: true });
 
     const read = await api.get(`/api/recipes/${recipe.id}`).set(admin.auth);
-    expect(read.body).toMatchObject({ canEdit: false, canDelete: true });
+    expect(read.body).toMatchObject({ isOwner: false, canEdit: true, canDelete: true });
     expect((await api.delete(`/api/recipes/${recipe.id}`).set(admin.auth)).status).toBe(204);
   });
 
@@ -217,13 +218,27 @@ describe('privacy and permissions', () => {
     expect(list.body.items).toHaveLength(0);
   });
 
-  it('admin cannot edit a public recipe of another user', async () => {
+  it('admin can edit a public recipe of another user, and the author stays the same', async () => {
     const owner = await createUser();
     const admin = await createUser({ role: 'ADMIN' });
     const category = await createCategory();
     const recipe = await createRecipe(owner.user.id, category.id, { isPublic: true });
+    const res = await api
+      .put(`/api/recipes/${recipe.id}`)
+      .set(admin.auth)
+      .send({ ...validRecipeBody(category.id), title: 'נערך על ידי מנהל' });
+    expect(res.status).toBe(200);
+    expect(res.body).toMatchObject({ title: 'נערך על ידי מנהל', isOwner: false, canEdit: true });
+    expect(res.body.author.id).toBe(owner.user.id);
+  });
+
+  it('admin cannot edit a private recipe of another user (404)', async () => {
+    const owner = await createUser();
+    const admin = await createUser({ role: 'ADMIN' });
+    const category = await createCategory();
+    const recipe = await createRecipe(owner.user.id, category.id, { isPublic: false });
     const res = await api.put(`/api/recipes/${recipe.id}`).set(admin.auth).send(validRecipeBody(category.id));
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(404);
   });
 });
 
@@ -308,6 +323,26 @@ describe('lists, search, filter, sort and pagination', () => {
 
     const quick = await api.get('/api/recipes?maxPrepTime=50').set(me.auth);
     expect(titles(quick.body)).toEqual(['סלט ירקות', 'עוגת שוקולד']);
+  });
+
+  it('filters by author, and /authors lists only authors with public recipes', async () => {
+    const { me } = await seedList();
+    const other = await createUser({ name: 'אחר' });
+    const quiet = await createUser({ name: 'רק פרטי' });
+    const category = await createCategory();
+    await createRecipe(other.user.id, category.id, { title: 'של אחר', isPublic: true });
+    await createRecipe(quiet.user.id, category.id, { title: 'פרטי', isPublic: false });
+
+    const byOther = await api.get(`/api/recipes?authorId=${other.user.id}`).set(me.auth);
+    expect(titles(byOther.body)).toEqual(['של אחר']);
+    const byQuiet = await api.get(`/api/recipes?authorId=${quiet.user.id}`).set(me.auth);
+    expect(byQuiet.body.items).toHaveLength(0);
+    expect((await api.get('/api/recipes?authorId=abc').set(me.auth)).status).toBe(400);
+
+    const authors = await api.get('/api/recipes/authors').set(me.auth);
+    expect(authors.status).toBe(200);
+    expect(authors.body).toContainEqual({ id: other.user.id, name: 'אחר', recipeCount: 1 });
+    expect(authors.body.some((a: { id: number }) => a.id === quiet.user.id)).toBe(false);
   });
 
   it('supports every sort option', async () => {

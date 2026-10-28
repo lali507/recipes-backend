@@ -47,13 +47,19 @@ export function toRecipeDto(recipe: RecipeRow, viewer: AuthUser) {
   // לא מחזירים ללקוח את imagePublicId, authorId ואת רשימת המועדפים הגולמית
   const { imagePublicId: _p, authorId, favorites, ...rest } = recipe;
   const isOwner = authorId === viewer.id;
+  const canManage = canManageRecipe(viewer, recipe);
   return {
     ...rest,
     isFavorite: favorites.length > 0,
     isOwner,
-    canEdit: isOwner,
-    canDelete: isOwner || (viewer.role === 'ADMIN' && recipe.isPublic),
+    canEdit: canManage,
+    canDelete: canManage,
   };
+}
+
+/** עריכה ומחיקה: היוצר, או מנהל על מתכון ציבורי (מתכון פרטי של אחר המנהל בכלל לא רואה) */
+function canManageRecipe(user: AuthUser, recipe: { authorId: number; isPublic: boolean }) {
+  return recipe.authorId === user.id || (user.role === 'ADMIN' && recipe.isPublic);
 }
 
 export type RecipeDto = ReturnType<typeof toRecipeDto>;
@@ -70,6 +76,7 @@ function buildFilters(query: RecipeListQuery): Prisma.RecipeWhereInput[] {
     filters.push({ OR: [{ title: contains }, { description: contains }, { ingredients: contains }] });
   }
   if (query.categoryId) filters.push({ categoryId: query.categoryId });
+  if (query.authorId) filters.push({ authorId: query.authorId });
   if (query.difficulty) filters.push({ difficulty: query.difficulty });
   if (query.kosherType) filters.push({ kosherType: query.kosherType });
   if (query.maxPrepTime) filters.push({ prepTimeMinutes: { lte: query.maxPrepTime } });
@@ -116,6 +123,16 @@ export function listPublicRecipes(user: AuthUser, query: RecipeListQuery) {
   return paginate(user, { AND: [{ isPublic: true }, ...buildFilters(query)] }, query);
 }
 
+/** מפרסמים שיש להם לפחות מתכון ציבורי אחד – לתיבת הסינון לפי מפרסם */
+export async function listAuthors() {
+  const authors = await prisma.user.findMany({
+    where: { recipes: { some: { isPublic: true } } },
+    orderBy: [{ name: 'asc' }, { id: 'asc' }],
+    select: { id: true, name: true, _count: { select: { recipes: { where: { isPublic: true } } } } },
+  });
+  return authors.map(({ _count, ...author }) => ({ ...author, recipeCount: _count.recipes }));
+}
+
 export function listMyRecipes(user: AuthUser, query: MyRecipesQuery) {
   const filters = buildFilters(query);
   if (query.isPublic !== undefined) filters.push({ isPublic: query.isPublic });
@@ -134,10 +151,10 @@ async function findVisibleRecipe(user: AuthUser, id: number) {
   return recipe;
 }
 
-async function findOwnedRecipe(user: AuthUser, id: number) {
+async function findEditableRecipe(user: AuthUser, id: number) {
   const recipe = await findVisibleRecipe(user, id);
-  if (recipe.authorId !== user.id) {
-    throw forbidden('רק יוצר המתכון יכול לערוך אותו');
+  if (!canManageRecipe(user, recipe)) {
+    throw forbidden('רק יוצר המתכון או מנהל יכולים לערוך אותו');
   }
   return recipe;
 }
@@ -167,7 +184,7 @@ export async function createRecipe(user: AuthUser, input: CreateRecipeInput) {
 }
 
 export async function updateRecipe(user: AuthUser, id: number, input: UpdateRecipeInput) {
-  await findOwnedRecipe(user, id);
+  await findEditableRecipe(user, id);
   await ensureCategoryExists(input.categoryId);
   const recipe = await prisma.recipe.update({ where: { id }, data: input, select: recipeSelect(user.id) });
   return toRecipeDto(recipe, user);
@@ -185,9 +202,7 @@ async function safeDeleteImage(storage: ImageStorage, publicId: string | null) {
 
 export async function deleteRecipe(user: AuthUser, id: number, storage: ImageStorage) {
   const recipe = await findVisibleRecipe(user, id);
-  const isOwner = recipe.authorId === user.id;
-  const adminOnPublic = user.role === 'ADMIN' && recipe.isPublic;
-  if (!isOwner && !adminOnPublic) {
+  if (!canManageRecipe(user, recipe)) {
     throw forbidden('אין לך הרשאה למחוק מתכון זה');
   }
   await prisma.recipe.delete({ where: { id } });
@@ -197,9 +212,9 @@ export async function deleteRecipe(user: AuthUser, id: number, storage: ImageSto
 // ---------------------------------------------------------------------
 // תמונות
 // ---------------------------------------------------------------------
-/** בדיקות לפני קבלת הקובץ: המתכון קיים, שייך למשתמש, והאחסון מוגדר */
+/** בדיקות לפני קבלת הקובץ: המתכון קיים, המשתמש רשאי לערוך אותו, והאחסון מוגדר */
 export async function assertCanUploadImage(user: AuthUser, id: number, storage: ImageStorage) {
-  await findOwnedRecipe(user, id);
+  await findEditableRecipe(user, id);
   if (!storage.isConfigured()) {
     throw serviceUnavailable(
       'העלאת תמונות אינה זמינה: Cloudinary לא הוגדר בשרת',
@@ -224,7 +239,7 @@ export async function setRecipeImage(
     throw new AppError(415, 'UNSUPPORTED_FILE_TYPE', 'הקובץ אינו תמונה תקינה מסוג JPG, PNG או WEBP');
   }
 
-  const existing = await findOwnedRecipe(user, id);
+  const existing = await findEditableRecipe(user, id);
   const stored = await storage.upload(file.buffer, detected);
   const recipe = await prisma.recipe.update({
     where: { id },
@@ -236,7 +251,7 @@ export async function setRecipeImage(
 }
 
 export async function removeRecipeImage(user: AuthUser, id: number, storage: ImageStorage) {
-  const existing = await findOwnedRecipe(user, id);
+  const existing = await findEditableRecipe(user, id);
   const recipe = await prisma.recipe.update({
     where: { id },
     data: { imageUrl: null, imagePublicId: null },

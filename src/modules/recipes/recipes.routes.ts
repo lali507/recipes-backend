@@ -13,8 +13,9 @@ export function createRecipesRouter(storage: ImageStorage): Router {
   router.use(authenticate);
 
   router.get('/', controller.listPublic);
-  // חשוב: /mine לפני /:id, אחרת "mine" ייחשב כמזהה
+  // חשוב: /mine ו-/authors לפני /:id, אחרת הם ייחשבו כמזהה
   router.get('/mine', controller.listMine);
+  router.get('/authors', controller.listAuthors);
   router.get('/:id', controller.getOne);
   router.post('/', controller.create);
   router.put('/:id', controller.update);
