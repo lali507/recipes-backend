@@ -40,6 +40,6 @@ services:
       - key: CLOUDINARY_API_SECRET
         sync: false
       - key: SEED_DEMO_DATA
-        value: "false"
+        value: "true" # יוצר משתמשי הדגמה ומתכונים לדוגמה (דורש DEMO_USER_PASSWORD)
       - key: DEMO_USER_PASSWORD
         sync: false
